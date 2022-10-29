@@ -83,5 +83,5 @@ R = get_R(sigma_what)
 Ahat,Bhat,Chat,Dhat,_,_,_,ss = driven_n4sid(R,k,m,p,q)
     
 # Store results
-np.savez('../data/em-inits/datasetE_nonnormal/best-lds.npz', A=A, B=B, C=C, C_new=C_new, D=D, 
+np.savez('data/em-inits/datasetE_nonnormal/best-lds.npz', A=A, B=B, C=C, C_new=C_new, D=D, 
             Q=Q, Q0=Q0, x0=x0,muu=muu, Qu=Qu, y=y, z=z, u=u, x=x, Ahat=Ahat, Bhat=Bhat, Chat=Chat, Dhat=Dhat)

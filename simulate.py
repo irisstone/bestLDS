@@ -339,6 +339,38 @@ def simulate_driven_bernoulli_gauss_lds(N,x0,Q0,A,B,Q,C,d,R,muu,Qu,diag_z=None):
 
   return outputs, u, curr_z, C_new
 
+def simulate_driven_noiseless_gauss_lds(N,x0,A,B,C,D,d,u):
+  ''' 
+  Simulate outputs from Gaussian LDS without noise.
+  Parameters:
+    N : number of time steps
+    x0 : prior mean
+    A  : dynamics matrix
+    B  : input dynamics matrix
+    C  : loading matrix
+    D  : input emissions matrix
+    d  : loading translation
+    u  : inputs
+  '''
+  curr_y = np.zeros((N,len(d)))
+  curr_x = np.zeros((N,A.shape[0]))
+  curr_x[0,:] = x0
+  
+  # Sample  
+  for i in range(N):
+    if len(d) == 1:
+        curr_y[i, :] = np.squeeze(C@curr_x[i, :] + D@u[i,:] + d)
+        #outputs[i, :] = np.random.normal(curr_z[i, :], R)
+    else:
+        curr_y[i, :] = C@curr_x[i, :] + D@u[i,:] + d
+        #outputs[i, :] = np.random.multivariate_normal(curr_z[i, :], R)
+
+    if i < N - 1:  
+      curr_x[i+1, :] = A@curr_x[i, :] + B@u[i, :]
+
+  return curr_y, curr_x
+
+
 def get_good_cov(p):
   '''
   Return random pxp covariance matrix with unit diagonal

@@ -65,7 +65,7 @@ diag_z = np.diag(sig_z)
 
 # Resimulate with unitizing data
 #y, x, u, z, C_new = simulate_driven_bernoulli_lds(N,x0,Q0,A,B,Q,C,D,d,muu,Qu,diag_z=diag_z,inputs=u)
-y, x, u, z, C_new = simulate_driven_studentt_bernoulli_lds(N,x0,Q0,A,B,Q,C,D,d,muu,Qu,diag_z=diag_z,inputs=u)
+y, x, u, z, C_new = simulate_driven_studentt_bernoulli_lds(N,x0,Q0,A,B,Q,C,D,d,diag_z=diag_z,inputs=u)
 
 # moment conversion
 y_reshaped = future_past_Hankel_order_stream(y, k, q).T

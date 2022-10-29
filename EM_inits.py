@@ -39,6 +39,7 @@ d = np.zeros(q)
 
 M = np.random.uniform(0,5,size=(q,p))
 C,rr = np.linalg.qr(M)
+C = C * 1e4
 
 # Prior parameters
 x0 = np.zeros(p)

@@ -96,27 +96,29 @@ def simulate_driven_noiseless_bernoulli_lds(N,x0,A,B,C,D,d,muu,Qu,diag_z=None,in
 
   return outputs, curr_x, u, curr_z, C_new
 
-def simulate_driven_bernoulli_lds(N,x0,Q0,A,B,Q,C,d,muu,Qu,diag_z=None,inputs=None):
+def simulate_driven_bernoulli_lds(N,x0,Q0,A,B,Q,C,D, d,muu,Qu,diag_z=None,inputs=None):
   ''' 
   Simulate from a probit-bernoulli LDS with inputs
   Returns y = N x q, u = N x m
   Parameters:
   	N : number of time steps
-	x0 : prior mean
-	Q0 : prior covariance
-	A  : dynamics matrix
-	B  : input dynamics matrix
-	Q  : dynamics covariance matrix
-	C  : loading matrix
-	d  : loading translation
-	muu : input mean
-	Qu  : input covariance
-	diag_z : vector to scale C such that the z variances are unitary
-			 can be computed by first simulating with diag_z = None
-			 and then resimulating with diag_z = cov(z)
+    x0 : prior mean
+    Q0 : prior covariance
+    A  : dynamics matrix
+    B  : input dynamics matrix
+    Q  : dynamics covariance matrix
+    C  : loading matrix
+    D  : input emissions matrix
+    d  : loading translation
+    muu : input mean
+    Qu  : input covariance
+    diag_z : vector to scale C such that the z variances are unitary
+        can be computed by first simulating with diag_z = None
+        and then resimulating with diag_z = cov(z)
   '''
   outputs = np.zeros((N,len(d)))
-  curr_x = np.random.multivariate_normal(x0,Q0)
+  curr_x = np.zeros((N,A.shape[0]))
+  curr_x[0,:] = np.random.multivariate_normal(x0,Q0)
   curr_z = np.zeros((N, len(d)))
 
   if inputs is None:
@@ -136,14 +138,17 @@ def simulate_driven_bernoulli_lds(N,x0,Q0,A,B,Q,C,d,muu,Qu,diag_z=None,inputs=No
   # Sample  
   for i in range(N):
     if len(d) == 1:
-        curr_z[i, :] = np.squeeze(C_new@curr_x + d)
+        curr_z[i, :] = np.squeeze(C_new@curr_x[i,:] + D@u[i,:] + d)
     else:
-        curr_z[i, :] = C_new@curr_x + d
+        curr_z[i, :] = C_new@curr_x[i,:] + D@u[i,:] + d
         
     outputs[i,:] = curr_z[i, :] >= 0
-    curr_x = np.random.multivariate_normal(A@curr_x + B@u[i,:],Q)
 
-  return outputs, u, curr_z, C_new
+    # Avoid issues with endpoints
+    if i < N - 1:
+      curr_x[i+1,:] = np.random.multivariate_normal(A@curr_x[i,:] + B@u[i,:],Q)
+
+  return outputs, curr_x, u, curr_z, C_new
 
 def simulate_driven_bernoulli_lds_trials(N,T,x0,Q0,A,B,Q,C,D,d,muu,Qu,diag_z=None,inputs=None,noise=None):
   ''' 
@@ -210,31 +215,34 @@ def simulate_driven_bernoulli_lds_trials(N,T,x0,Q0,A,B,Q,C,D,d,muu,Qu,diag_z=Non
   return stacked_outputs, u, stacked_z, C_new
 
 
-def simulate_studentt_bernoulli_lds(N,x0,Q0,A,B,Q,C,d,diag_z=None,inputs=None):
+def simulate_driven_studentt_bernoulli_lds(N,x0,Q0,A,B,Q,C,D,d,diag_z=None,inputs=None):
   ''' 
-  Simulate from a probit-bernoulli LDS with student-t distrubted inputs
+  Simulate from a probit-bernoulli LDS with student-t distributed inputs
   Returns y = N x q, u = N x m
   Parameters:
     N : number of time steps
-  x0 : prior mean
-  Q0 : prior covariance
-  A  : dynamics matrix
-  B  : input dynamics matrix
-  Q  : dynamics covariance matrix
-  C  : loading matrix
-  d  : loading translation
-  diag_z : vector to scale C such that the z variances are unitary
+    x0 : prior mean
+    Q0 : prior covariance
+    A  : dynamics matrix
+    B  : input dynamics matrix
+    Q  : dynamics covariance matrix
+    C  : loading matrix
+    D  : input emissions matrix
+    d  : loading translation
+    diag_z : vector to scale C such that the z variances are unitary
        can be computed by first simulating with diag_z = None
        and then resimulating with diag_z = cov(z)
   '''
   outputs = np.zeros((N,len(d)))
-  curr_x = np.random.multivariate_normal(x0,Q0)
+  curr_x = np.zeros((N,A.shape[0]))
+  curr_x[0,:] = np.random.multivariate_normal(x0,Q0)
   curr_z = np.zeros((N, len(d)))
   if inputs is None:
     u = t.rvs(df=3, loc=0, scale=0.1, size=(N, B.shape[1]))
   else:
     u = inputs
 
+  # Renormalize C for unit covariance on z  
   if diag_z is not None:
     C_new = np.zeros_like(C)
     for j in range(A.shape[0]):
@@ -242,14 +250,23 @@ def simulate_studentt_bernoulli_lds(N,x0,Q0,A,B,Q,C,d,diag_z=None,inputs=None):
       C_new[:,j] = C[:,j] * inv_diag
   else:
     C_new = C
-    
+  
+  # Sample  
   for i in range(N):
     if len(d) == 1:
-        curr_z[i, :] = np.squeeze(C_new@curr_x + d)
+        curr_z[i, :] = np.squeeze(C_new@curr_x[i,:] + D@u[i,:] + d)
     else:
-        curr_z[i, :] = C_new@curr_x + d
+        curr_z[i, :] = C_new@curr_x[i,:] + D@u[i,:] + d
+        
     outputs[i,:] = curr_z[i, :] >= 0
-    curr_x = np.random.multivariate_normal(A@curr_x + B@u[i,:],Q)
+
+    # Avoid issues with endpoints
+    if i < N - 1:
+      curr_x[i+1,:] = np.random.multivariate_normal(A@curr_x[i,:] + B@u[i,:],Q)
+
+  return outputs, curr_x, u, curr_z, C_new
+
+
   return outputs, u, curr_z, C_new
 
 def simulate_undriven_bernoulli_lds(N,x0,Q0,A,Q,C,d,diag_z=None):

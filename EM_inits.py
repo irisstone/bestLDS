@@ -57,7 +57,7 @@ N = 256000
 # Get initial diag z for unitizing
 u = np.random.multivariate_normal(muu,Qu,size=N)
 #y, x, u, z, _ = simulate_driven_bernoulli_lds(N,x0,Q0,A,B,Q,C,D,d,muu,Qu,inputs=u)
-y, x, u, z, C_new = simulate_driven_studentt_bernoulli_lds(N,x0,Q0,A,B,Q,C,D,d,muu,Qu,diag_z=diag_z,inputs=u)
+y, x, u, z, C_new = simulate_driven_studentt_bernoulli_lds(N,x0,Q0,A,B,Q,C,D,d,muu,Qu,inputs=u)
 
 z_reshaped = future_past_Hankel_order_stream(z, k, q, flip=True)
 sig_z = np.cov(z_reshaped)[: q, q : 2*q]

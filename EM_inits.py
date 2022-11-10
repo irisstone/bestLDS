@@ -14,8 +14,8 @@ import sys
 sys.path.insert(0, '..')
 
 ### Simulation with driven LDS-BEST
-seed = 8656
-np.random.seed(seed) # 8656 # 9347
+seed = 27642
+np.random.seed(seed)
 
 ## System orders
 q = 5  # dimension of the data
@@ -33,10 +33,12 @@ Q = np.eye(p) * .1
 gamma = np.eye(q) * .1
 d = np.zeros(q)
 
-#noise = np.random.standard_normal(size=(q,p))
-#U,_,_ = np.linalg.svd(noise,full_matrices=False)
-#C = U
+# method 1 for C
+# noise = np.random.standard_normal(size=(q,p))
+# U,_,_ = np.linalg.svd(noise,full_matrices=False)
+# C = U * 1e4
 
+# method 2 for C
 M = np.random.uniform(0,5,size=(q,p))
 C,rr = np.linalg.qr(M)
 C = C * 1e4

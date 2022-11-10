@@ -103,6 +103,104 @@ def best_lds(y, u, k, p=None):
 
 	return Ahat, Bhat, Chat, Dhat
 
+def uniqueSessionIDs(sessions):
+
+    '''
+    Creates unique ID for each session (number of unique IDs == number of unique sessions)
+    Parameters
+    ----------
+    sessions: vector containing the starting indices of each session
+    
+    Returns
+    -------
+    uniqueSessionIDs: vector of length N assigning each trial a unique session ID 
+    '''
+
+    N = sessions[-1] # total number of trials
+    uniqueSessionIDs = np.zeros(N)
+    sessionID = 0
+    count = 1
+    for i in range(N):
+        if i < sessions[count]: # for trials corresponding to length of each session
+            uniqueSessionIDs[i] = sessionID # assign session ID to all trials in the same session
+        else: 
+            count += 1 # move to next session
+            sessionID += 1 # add new session ID
+            uniqueSessionIDs[i] = sessionID 
+
+    return uniqueSessionIDs
+
+def splitData(sessions,mouseIDs,testSize=0.2,seed=0):
+
+    '''
+    Splits data into train and test sets for cross validation by partitioning entire sessions and balancing 
+    the number of animals in each test set. 
+    Parameters
+    ----------
+    sessions : vector containing the starting indices of each session
+    mouseIDs : vector of length N indicating which animal each trial is associated with
+    testSize : the percentage of sessions to put in each test set
+    seed : random seed determines how train and test sets are split
+    
+    Returns
+    -------
+    trainTrialIxs: vector with indices from all data associated with training set
+    trainSessionStartIxs: vector contaiining the starting indices of each session in the training set
+    testTrialIxs: indices from all data associated with test set 
+    testSessionStartIxs: vector contaiining the starting indices of each session in the test set
+    '''
+
+    sessionIDs = uniqueSessionIDs(sessions)
+    sessionLabels = np.unique(sessionIDs) # unique session labels (one for each unique session)
+    numSessions = len(sessionLabels) # number of unique sessions
+    testLength = round(numSessions * testSize) # number of sessions to set aside for test data
+        
+    # make sure equal number of sessions are taken from each mouse
+    unique_mouseID = np.unique(mouseIDs) # IDs of each mouse
+    numTestSessions = round(testLength/len(unique_mouseID)) # number of sessions to take from each mouse for test set
+    np.random.seed(seed)
+
+    testSessions = []
+    for i in range(len(unique_mouseID)):
+        mouseSessions = np.unique(sessionIDs[mouseIDs==unique_mouseID[i]]) # find session numbers associated with each mouse
+        try: selectedSessions = np.sort(np.random.choice(mouseSessions,size=numTestSessions,replace=False)) # randomly select sessions for test set
+        except ValueError: selectedSessions = np.sort(mouseSessions) # if too few sessions available, take all of them
+    
+        testSessions.append(selectedSessions)
+
+    testSessionLabels = np.sort(np.array([item for sublist in testSessions for item in sublist]).astype(int))
+    trainSessionLabels = np.delete(sessionLabels,testSessionLabels).astype(int) 
+
+    # get session lengths associated with test and train sets
+    testSessionIxs = sessions[testSessionLabels]
+    testSessionLengths = np.diff(sessions)[testSessionLabels]
+    trainSessionIxs = sessions[trainSessionLabels]
+    trainSessionLengths = np.diff(sessions)[trainSessionLabels]
+
+    # get all the indices of the data points for the test set
+    testTrialIxs = np.zeros(np.sum(testSessionLengths), dtype=int)
+    testSessionStartIxs = np.zeros(len(testSessionIxs)+1, dtype=int)
+    count = 0
+    for i in range(len(testSessionIxs)):
+    	testSessionStartIxs[i] = count
+    	sessLength = testSessionLengths[i]
+    	testTrialIxs[count:count+sessLength] = np.arange(testSessionIxs[i],testSessionIxs[i]+sessLength,1)
+    	count = count+sessLength
+    testSessionStartIxs[-1] = count
+
+    # get all the indices of the data points for the test set
+    trainTrialIxs = np.zeros(np.sum(trainSessionLengths), dtype=int)
+    trainSessionStartIxs = np.zeros(len(trainSessionIxs)+1, dtype=int)
+    count = 0
+    for i in range(len(trainSessionIxs)):
+    	trainSessionStartIxs[i] = count
+    	sessLength = trainSessionLengths[i]
+    	trainTrialIxs[count:count+sessLength] = np.arange(trainSessionIxs[i],trainSessionIxs[i]+sessLength,1)
+    	count = count+sessLength
+    trainSessionStartIxs[-1] = count
+
+    return trainTrialIxs, trainSessionStartIxs, testTrialIxs, testSessionStartIxs
+
 def crossval_split(x,y,sessions,mouseIDs,test_size=0.2, seeds=None):
 
     '''
@@ -131,7 +229,7 @@ def crossval_split(x,y,sessions,mouseIDs,test_size=0.2, seeds=None):
 
     # if seeds not specified, choose randomly
     if seeds is None:
-        seeds = np.random.randint(0,high=500,size=int(N/0.2))
+        seeds = np.random.randint(0,high=500,size=int(1/0.2))
 
     # initialize as lists since not every test/train set will be exactly the same size
     x_train, x_test, y_train, y_test, sessions_train, sessions_test, testIx = [],[],[],[],[],[],[]

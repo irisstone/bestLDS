@@ -11,7 +11,7 @@ function [zzmap,zzHess,logEv] = computeMAP_LDSBernoulli_wInputs(zz0,yy,ss,A,B,C,
 %      A [m x m] - dynamics matrix
 %      B [m x d] - input weights to latents
 %      C [n x m] - observation matrix
-%      D [n x m] - input weights to observations
+%      D [n x d] - input weights to observations
 %      Q [m x m] - latent noise covariance
 %           opts - optimization structure for fminunc (optional)
 %

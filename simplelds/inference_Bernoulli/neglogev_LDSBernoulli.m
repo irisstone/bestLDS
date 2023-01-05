@@ -1,5 +1,5 @@
-function [neglogEv,zzmap] = neglogev_LDSBernoulli(prs0,yy,csize,Q)
-% [neglogEv,zzmap] = neglogev_LDSBernoulli(prs0,yy,Q)
+function [neglogEv,zzmap] = neglogev_LDSBernoulli(prs0,yy,mm)
+% [neglogEv,zzmap] = neglogev_LDSBernoulli(prs0,mm)
 %
 % Computes negative log evidence for LDS model
 %
@@ -18,12 +18,16 @@ function [neglogEv,zzmap] = neglogev_LDSBernoulli(prs0,yy,csize,Q)
 %   mstruct - model struct with likelihood, prior & data embedded
 
 
+% extract params
+[A,C] = unvecLDSprs(prs0,size(mm.C));
 
-[A,C] = unvecLDSprs(prs0,csize);
-MAPopts = optimoptions('fminunc','algorithm','trust-region',...
-    'SpecifyObjectiveGradient',true,'HessianFcn','objective','display','off');
+% insert into fitting struct
+mm.A = A;
+mm.C = C;
 
-[zzmap,~,logev] = computeMAP_LDSBernoulli([],yy,A,C,Q,MAPopts);
+% compute log-evidence using Laplace approximation (and MAP estimate of latent)
+[zzmap,~,logev] = computeZmap_LDSBernoulli(yy,mm);
 
+% Flip sign of log-evidence
 neglogEv = -logev;
 

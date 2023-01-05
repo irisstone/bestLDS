@@ -1,7 +1,9 @@
-% test_LDSBernoulli_wInputs_LaplaceEvidenceOptim.m
+% test_LDSBernoulli_LaplEvSearch_wInputs.m
 %
-% 1. Sample from a latent Gaussian linear dynamical system (LDS) model with inputs, with Bernoulli observations.
-% 2. Compute ML fit via brute force evidence optimization, using Laplace approximation
+% 1. Sample from a latent Gaussian linear dynamical system (LDS) model 
+%    WITH INPUTS, with Bernoulli observations. 
+% 2. Compute max-evidence fit of LDS parameters via brute-force
+%    optimization of evidence, evaluated using Laplace approximation 
 
 % Basic equations:
 % -----------------
@@ -21,15 +23,18 @@ ntrials = 1000;  % number of time bins
 % --------------------
 
 % Set dynamics matrix A
-
-% % Generate random A
-% sA = sort((rand(nz,1)*0.02+.98), 'descend');  % eigenvalues of A
-% uA = orth(randn(nz)); % singular vectors
-% A = uA*diag(sA)*uA';
-
-% Use rotation matrix if nz = 2
-thet = pi/100;
-A = [cos(thet), sin(thet); -sin(thet), cos(thet)]*.99;
+if nz == 2 
+    % Use rotation matrix if nz = 2
+    thet = pi/25;
+    A = [cos(thet), sin(thet); -sin(thet), cos(thet)]*.99;
+else
+    % Generate random stable A
+    A = randn(nz);
+    [u,s] = eig(A,'vector'); % get eigenvectors and eigenvals
+    s = s/max(abs(s))*.98; % set largest eigenvalue to lie inside unit circle (enforcing stability)
+    s(real(s)<0) = -s(real(s)<0); % set real parts to be positive (encouraging smoothness)
+    A = real(u*(diag(s)/u));  % reconstruct A
+end
 
 % Dynamics noise covariance
 Q = randn(nz); Q = .01*(Q'*Q+eye(nz)); % dynamics noise covariance
@@ -83,18 +88,20 @@ for jj = 1:nz; set(h(jj+nz),'color', colr(jj,:)); end
 xlabel('time (bin)');
 ylabel('latent'); drawnow;
 
-mse = [mean((zz(1,:)-zzmap(1,:)).^2), mean((zz(2,:)-zzmap(2,:)).^2)]
+% % Compute MSE in recovered latent
+% mse = [mean((zz(1,:)-zzmap(1,:)).^2), mean((zz(2,:)-zzmap(2,:)).^2)]
 
-% %% Compute max-evidence estimate of A and C using laplace approx
-% 
-% % 1. Initialize from true params
-% mmtrue = struct('A',A, 'B', B, 'C',C, 'D', D, 'Q', Q);  % make initial struct
-% mmtrueFit = runMaxLapEvidence_LDSBernoulli(yy,mmtrue);
-% 
-% % 2. Initialize from somewhere else
-% mm0 = struct('A',A*.1, 'C',C*.1, 'Q', Q);  % make initial struct
-% mm1 = runMaxLapEvidence_LDSBernoulli(yy,mm0);
-% 
-% fprintf('Final log-evidence, initialized from true params:  %.2f\n', mmtrueFit.logEvidence);
-% fprintf('Final log-evidence, initialized from farther away: %.2f\n', mm1.logEvidence);
-% 
+
+%% Compute max-evidence estimate of A, B, C, D using laplace approx
+
+% 1. Initialize from true params
+mmtrue = struct('A',A, 'B', B, 'C',C, 'D', D, 'Q', Q);  % make initial struct
+mmtrueFit = runMaxLapEvidence_LDSBernoulli_wInputs(yy,ss,mmtrue); % optimize evidence, starting from true params
+
+% 2. Initialize from somewhere else
+mm0 = struct('A',A*.1, 'B', B*0.1, 'C',C*.1, 'D', D*0.1, 'Q', Q);  % make initial struct
+mm1 = runMaxLapEvidence_LDSBernoulli_wInputs(yy,ss,mm0); % optimize evidence, starting far from true params
+
+fprintf('Final log-evidence, initialized from true params:  %.2f\n', mmtrueFit.logEvidence);
+fprintf('Final log-evidence, initialized from farther away: %.2f\n', mm1.logEvidence);
+

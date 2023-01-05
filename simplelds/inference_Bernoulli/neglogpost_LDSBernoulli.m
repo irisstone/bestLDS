@@ -56,7 +56,7 @@ elseif nargout == 3 % Evaluate gradient and Hessian
     grad = Cmat'*(df-Y) + QinvZ;   % gradient
     
     % Compute hessian
-    % Hess = X'*(X.*ddf);  % slow way
+    % Hess2 = C'*(C.*ddf);  % slow way
     
     % fast way
     ny = size(C,1);

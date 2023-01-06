@@ -1,4 +1,4 @@
-function [mm,logEvTrace,logev_final,zzmu,zzHess] = runLEM_LDSBernoulli(yy,mm,uu,optsEM)
+function [mm,mm_all,logEvTrace,logev_final,zzmu,zzHess,Trun] = runLEM_LDSBernoulli(yy,mm,uu,optsEM)
 % [mm,logEvTrace] = runLEM_LDSBernoulli(yy,mm,ss,optsEM)
 %
 % Maximum marginal likelihood fittin of LDS-Bernoulli model via Laplace-EM
@@ -22,7 +22,10 @@ function [mm,logEvTrace,logev_final,zzmu,zzHess] = runLEM_LDSBernoulli(yy,mm,uu,
 % OUTPUTS
 % -------
 %          mm [struct]      - model struct with fields 'A', 'C', 'Q', and 'logEvidence'
+%          mmall [struct]   - model struct with parameter values for every
+%          iteration of EM
 %  logEvTrace [1 x maxiter] - trace of log-likelihood during EM
+%  Trun [1 x maxiter] - time to run EM for each iteration
 
 % Set EM optimization params if necessary
 if nargin < 4 || isempty(optsEM)
@@ -50,9 +53,20 @@ update.Dynam = (update.A || update.B || update.Q); % update dynamics params
 update.Obs = (update.C || update.D); % update observation params
 optsEM.update = update;
 
+% Grab system dimensions
+nz = size(mm.A,1);
+nu = size(mm.B,2);
+ny = size(mm.C,1);
+
 % Set up variables for EM
 logEvTrace = zeros(optsEM.maxiter,1); % log-likelihood over EM iterations
+As = zeros(nz, nz, optsEM.maxiter);
+Bs = zeros(nz, nu, optsEM.maxiter);
+Cs = zeros(ny, nz, optsEM.maxiter);
+Ds = zeros(ny, nu, optsEM.maxiter);
+Qs = zeros(nz, nz, optsEM.maxiter);
 %logpPrev = -inf; % prev value of log-likelihood
+
 jj = 0; % counter
 
 % Set options for optimizing of latents (in E step)
@@ -62,7 +76,9 @@ optsFminunc = optimoptions('fminunc','algorithm','trust-region',...
 % Compute MAP estimate of latents using initial params
 zzmap = computeZmap_LDSBernoulli(yy,mm,uu,optsFminunc);  %BUG HERE -- should be using B,D,S
 
+Trun = zeros(optsEM.maxiter,1);
 while (jj < optsEM.maxiter) %&& (dlogp>optsEM.dlogptol)
+    tic;
     jj = jj+1; % increment counter
     
     % --- run E step  -------
@@ -72,7 +88,13 @@ while (jj < optsEM.maxiter) %&& (dlogp>optsEM.dlogptol)
     % --- run M step  -------
     mm = runMstep_LDSBernoulli(yy,mm,uu,zzmap,H,optsEM);
     %mm = optsEM.runMstep(yy,mm,ss,zzmap,H,optsEM);
-    
+
+    % --- store parameter values for each step in arrays
+    As(:,:,jj) = mm.A; Bs(:,:,jj) = mm.B; Cs(:,:,jj) = mm.C;
+    Ds(:,:,jj) = mm.D; Qs(:,:,jj) = mm.Q; 
+
+    Trun(jj) = toc; % store time per iteration
+
     % ---  Display progress ----
     if mod(jj,optsEM.display)==0
         fprintf('--- EM iter %d: logEv= %.3f ---\n', jj,logp);
@@ -92,6 +114,9 @@ while (jj < optsEM.maxiter) %&& (dlogp>optsEM.dlogptol)
     % ---------------------------------------------------------------------
 
 end
+
+mm_all.As = As; mm_all.Bs = Bs; mm_all.Cs = Cs;
+mm_all.Ds = Ds; mm_all.Qs = Qs; 
 
 % Compute MAP latents and log-evidence at optimum
 if nargout > 2

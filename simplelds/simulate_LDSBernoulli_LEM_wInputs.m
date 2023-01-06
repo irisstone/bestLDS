@@ -13,12 +13,14 @@
 addpath inference_Bernoulli/
 addpath utils
 
-% Set dimensions
-nz = 3;  % dimensionality of latent z
+% Set dimensions / system characteristics
+savename = 'data/datasetD_q1/bestLDS-EM-results-4.mat';
+nz = 2;  % dimensionality of latent z
 ny = 1;  % dimensionality of observation y
-nu = 4; % dimensionality of inputs
-
+nu = 3; % dimensionality of inputs
 nT = 1000;  % number of time bins
+maxEMiters = 20; % number of iterations of EM
+initialize = 0; % 0 means random and 1 means ssid
 
 % Set model parameters
 % --------------------
@@ -26,8 +28,8 @@ nT = 1000;  % number of time bins
 % Set dynamics matrix A
 if nz == 2 
     % Use rotation matrix if nz = 2
-    thet = pi/100;
-    A = [cos(thet), sin(thet); -sin(thet), cos(thet)]*.99;
+    thet = pi/48;
+    A = [cos(thet), sin(thet); -sin(thet), cos(thet)];
 else
     % Generate random stable A
     A = randn(nz);
@@ -38,31 +40,31 @@ else
 end
 
 % Dynamics noise covariance
-Q = randn(nz); Q = .01*(Q'*Q+eye(nz)); % dynamics noise covariance
-Q0 = eye(nz);  % covariance of initial latents
+Q = eye(nz) * 0.0001; % dynamics noise covariance
+Q0 = eye(nz) * 0.0001;  % covariance of initial latents
 
 % Make function for sampling z noise
 sampznoise = @(n)(mvnrnd(zeros(n,nz),Q)'); % x noise
 
 % Observation matrix C
-C = 0.25*randn(ny,nz); % observation matrix
+C = 1 * randn(ny,nz); % observation matrix
 % --------------------
-% NOTE (critical observation): LEM tends to increase then DECREASE the ELBO
-% if norm of C is too large (eg stdev >= 1). 
 
-disp(norm(C));
-disp(std(C));
+%disp(norm(C));
+%disp(std(C));
 % --------------------
 
 % Set input weights B & D
-B = randn(nz,nu)*.25;
-D = randn(ny,nu)*.25;
+B = generate_input_matrix(nz,nu,0.9,0.5) * 0.1;
+D = generate_input_matrix(ny,nu,0.9,0.5) * 0.1;
 
 
 %% Sample data from the LDS-Bernoulli-with-Inputs model
 
 % Set inputs
-uu = 0.5*randn(nu,nT); % external inputs
+muu = ones(nT,nu);
+Qu = eye(nu);
+uu = mvnrnd(muu,Qu)';
 
 mmtrue = struct('A',A,'B',B,'C',C,'D',D,'Q',Q,'Q0',Q0); % parameter struct for model
 [yy,zz,yyprob] = sampleLDSBernoulli(mmtrue,nT,uu); % sample data from model
@@ -94,7 +96,7 @@ xlabel('time (bin)');ylabel('P(spike)');title('true P(spike)'); drawnow;
 %% Compute max-evidence estimate of model parameters using Laplace-EM
 
 % Set options for EM     
-optsEM.maxiter = 20;    % maximum # of iterations
+optsEM.maxiter = maxEMiters;    % maximum # of iterations
 optsEM.display = 10;  % display frequency
 % optsEM.dlogptol = 0.01;  % stopping tolerance (NOT USED)
 optsEM.nMCsamps = 10;  % number of monte carlo samples for evaluating total-data log-likelihood in M step
@@ -125,6 +127,12 @@ fprintf('Log-evidence at inferred params:  %.2f\n', logev1);
 if logev1>=logevtrue, fprintf('(found optimum -- SUCCESS!)\n');
 else,   fprintf('(FAILED to find optimum!)\n');
 end
+
+%% Save results 
+results.params=mmall;
+results.logev=logEvTrace1;
+results.time=Trun;
+save(savename,'results');
 
 %% Find best alignment between inferred and MAP-true latents
 

@@ -63,7 +63,7 @@ def fit_lp_EM(y, u, num_inits, num_iters,
 
     return elbos, LDS, As, Bs, Cs, Ds
 
-def convert_mat_em_fits_to_npz(matlab_files, num_iters, q, p, m):
+def convert_mat_em_fits_to_npz(matlab_files, num_iters, q, p, m, simulated_data=False):
 
     '''
     Takes in a .mat file of EM fit information and converts the saved values into the proper format
@@ -77,6 +77,7 @@ def convert_mat_em_fits_to_npz(matlab_files, num_iters, q, p, m):
     q : the dimensionality of the observations for the data 
     p : the dimensionality of the latents for the data
     m : the dimensionality of the inputs for the data
+    simulated_data : boolean, True if fits come from simulated data (meaning file contains info about true parameters)
     
     RETURNS
     -------
@@ -125,11 +126,12 @@ def convert_mat_em_fits_to_npz(matlab_files, num_iters, q, p, m):
         # the .mat files have some extra information, too, so let's store those as well just in case
         # note that we don't need to store this multiple times, even with multiple inits, because the true
         # values for the same dataset will always be the same for every init
-        logev_true = matlab_fits['results']['logev_true'][0][0][0][0]
-        A_true = matlab_fits['results']['params_true'][0][0]['A'][0][0]
-        B_true = matlab_fits['results']['params_true'][0][0]['B'][0][0]
-        C_true = matlab_fits['results']['params_true'][0][0]['C'][0][0]
-        D_true = matlab_fits['results']['params_true'][0][0]['D'][0][0]
+        if simulated_data:
+            logev_true = matlab_fits['results']['logev_true'][0][0][0][0]
+            A_true = matlab_fits['results']['params_true'][0][0]['A'][0][0]
+            B_true = matlab_fits['results']['params_true'][0][0]['B'][0][0]
+            C_true = matlab_fits['results']['params_true'][0][0]['C'][0][0]
+            D_true = matlab_fits['results']['params_true'][0][0]['D'][0][0]
         time_per_iteration[init] = matlab_fits['results']['time'][0][0].T
 
     # save information in numpy file format
@@ -164,7 +166,8 @@ def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20, half_num_it
     Ds = inits['Ds']
     elbos = inits['elbos']
     
-    min_steps = int(min_steps/2)
+    if half_num_iters:
+        min_steps = int(min_steps/2)
     
     
     for j in range(num_inits):
@@ -193,6 +196,12 @@ def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20, half_num_it
                 diff = np.mean(abs(Gain_i - Gain_prev))
                 Gain_prev = Gain_i
 
+            elif method == 'ELBO':
+                if half_num_iters:
+                    diff = elbos[j,i*2]-elbos[j,i*2-1]
+                else:
+                    diff = elbos[j,i]-elbos[j,i-1]
+
             if diff <= tol: 
                 if half_num_iters:
                     elbo_diff = elbos[j,i*2]-elbos[j,i*2-1]
@@ -201,17 +210,19 @@ def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20, half_num_it
                     elbo_diff = elbos[j,i]-elbos[j,i-1]
                     steps_to_convergence[j] = i
 
-                print('initialization: %s, steps to convergence: %s, elbo diff: %.f' %(j, steps_to_convergence[j], elbo_diff))
+                print('initialization: %s, steps to convergence: %s, elbo diff: %.f' %(j, steps_to_convergence[j], abs(elbo_diff)))
                 
                 elbo_diffs[j] = abs(elbo_diff)
                 break 
             
             elif i==int(num_iters)-1:
                 if half_num_iters:
+                    elbo_diff = elbos[j,i*2]-elbos[j,i*2-1]
                     steps_to_convergence[j] = (num_iters * 2) - 1
                 else:
+                    elbo_diff = elbos[j,i]-elbos[j,i-1]
                     steps_to_convergence[j] = num_iters - 1
-                print('initialization: %s, steps to convergence: %s, elbo diff: %s' %(j, steps_to_convergence[j]+1, 'N/A'))
+                print('initialization: %s, steps to convergence: %s, elbo diff: %.f' %(j, steps_to_convergence[j]+1, abs(elbo_diff)))
 
     return elbos, steps_to_convergence
 

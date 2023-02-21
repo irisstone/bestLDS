@@ -202,7 +202,7 @@ def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20, half_num_it
                 else:
                     diff = elbos[j,i]-elbos[j,i-1]
 
-            if diff <= tol: 
+            if abs(diff) <= tol: 
                 if half_num_iters:
                     elbo_diff = elbos[j,i*2]-elbos[j,i*2-1]
                     steps_to_convergence[j] = i*2

@@ -3,6 +3,31 @@ from ssid import *
 from moment_conversion import *
 from simulate import *
 
+def permute_states(A, B, C, D, permuted_order):
+
+	permuted_order = [0, 2, 1]
+
+	# permute A
+	A_permuted = np.zeros_like(A)
+	for i in range(A.shape[0]):
+		for j in range(A.shape[1]):
+			A_permuted[i,j] = A[permuted_order[i],permuted_order[j]]
+
+	# permute B (can permute entire rows because columns represent inputs and don't change)
+	B_permuted = np.zeros_like(B)
+	for i in range(B.shape[0]):
+		B_permuted[i,:] = B[permuted_order[i],:]
+
+	# permute C (currently works for C with q=1)
+	C_permuted = np.zeros_like(C)
+	for i in range(C.shape[1]):
+		C_permuted[0, i] = C[0, permuted_order[i]]
+
+	# D should not need to be permuted in the q=1 case because the inputs don't change order?
+	D_permuted = D
+
+	return A_permuted, B_permuted, C_permuted, D_permuted
+
 def get_unique_neurons(clusters):
 	return np.unique(clusters)
 

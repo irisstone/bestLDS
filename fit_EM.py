@@ -1,5 +1,6 @@
 import ssm
 import numpy as np
+import scipy.io as sio
 
 def fit_lp_EM(y, u, num_inits, num_iters,
               init_params=None, num_substeps=2):
@@ -62,10 +63,99 @@ def fit_lp_EM(y, u, num_inits, num_iters,
 
     return elbos, LDS, As, Bs, Cs, Ds
 
-def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20):
+def convert_mat_em_fits_to_npz(matlab_files, num_iters, q, p, m, simulated_data=False):
+
+    '''
+    Takes in a .mat file of EM fit information and converts the saved values into the proper format
+    to save them as a .npz file. Needs to be done before running the check_convergence() function and 
+    running fig4.ipynb
+
+    PARAMETERS
+    ----------
+    matlab_files : a list of strings containing the file paths for each .mat file that needs converting
+    num_iters : the number of iterations of EM specified when fitting
+    q : the dimensionality of the observations for the data 
+    p : the dimensionality of the latents for the data
+    m : the dimensionality of the inputs for the data
+    simulated_data : boolean, True if fits come from simulated data (meaning file contains info about true parameters)
+    
+    RETURNS
+    -------
+    None (the result of running this function is that an .npz file is saved in the same location as the )
+    
+    '''
+
+    # number of different files to convert and consolidate into single file
+    num_inits = len(matlab_files)
+
+    # create empty arrays for storing values
+    elbos = np.zeros((num_inits, num_iters))
+    As = np.zeros((num_inits, num_iters, p, p))
+    Bs = np.zeros((num_inits, num_iters, p, m))
+    Cs = np.zeros((num_inits, num_iters, q, p))
+    Ds = np.zeros((num_inits, num_iters, q, m))
+    time_per_iteration = np.zeros((num_inits, num_iters))
+
+    for init, matlab_file in enumerate(matlab_files):
+
+        # load .mat file
+        matlab_fits = sio.loadmat(matlab_file)
+
+        # load and convert LLs to proper format
+        elbos[init] = matlab_fits['results']['logev'][0][0].T
+
+        # get number of iterations
+        num_iters = int(elbos.shape[1])
+
+        # load and convert As to proper format
+        A = np.array([matlab_fits['results']['params'][0][0][0]['As'][0][:,:,i] for i in range(num_iters)])
+        As[init] = A[np.newaxis,:]
+
+        # load and convert Bs to proper format
+        B = np.array([matlab_fits['results']['params'][0][0][0]['Bs'][0][:,:,i] for i in range(num_iters)])
+        Bs[init] = B[np.newaxis,:]
+
+        # load and convert Cs to proper format
+        C = np.array([matlab_fits['results']['params'][0][0][0]['Cs'][0][:,:,i] for i in range(num_iters)])
+        Cs[init] = C[np.newaxis,:]
+
+        # load and convert Ds to proper format
+        D = np.array([matlab_fits['results']['params'][0][0][0]['Ds'][0][:,:,i] for i in range(num_iters)])
+        Ds[init] = D[np.newaxis,:]
+
+        # the .mat files have some extra information, too, so let's store those as well just in case
+        # note that we don't need to store this multiple times, even with multiple inits, because the true
+        # values for the same dataset will always be the same for every init
+        if simulated_data:
+            logev_true = matlab_fits['results']['logev_true'][0][0][0][0]
+            A_true = matlab_fits['results']['params_true'][0][0]['A'][0][0]
+            B_true = matlab_fits['results']['params_true'][0][0]['B'][0][0]
+            C_true = matlab_fits['results']['params_true'][0][0]['C'][0][0]
+            D_true = matlab_fits['results']['params_true'][0][0]['D'][0][0]
+        time_per_iteration[init] = matlab_fits['results']['time'][0][0].T
+
+    # save information in numpy file format
+    if num_inits == 1: 
+        numpy_file = matlab_file[0:-4] + '.npz'
+    else: 
+        numpy_file = matlab_file[0:-7] + '.npz'
+
+    np.savez(numpy_file, elbos=elbos, As=As, Bs=Bs, Cs=Cs, Ds=Ds, logev_true=logev_true, 
+             A_true=A_true, B_true=B_true, C_true=C_true, D_true=D_true, time_per_iteration=time_per_iteration)
+
+    return None
+
+def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20, half_num_iters=True):
     
     num_inits = inits['elbos'].shape[0]
-    num_iters = int(inits['elbos'].shape[1]/2)
+
+    # for the q>1 datasets using ssm, we only store the parameter values for every other iteration, 
+    # thus half_num_iters=True. for the q=1 datasets using matlab, there are parameter values for 
+    # every iteration and thus half_num_iters=False. 
+    if half_num_iters:
+        num_iters = int(inits['elbos'].shape[1]/2)
+    else:
+        num_iters = int(inits['elbos'].shape[1])
     
     steps_to_convergence = np.zeros((num_inits))
     elbo_diffs = np.zeros((num_inits))
@@ -76,7 +166,8 @@ def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20):
     Ds = inits['Ds']
     elbos = inits['elbos']
     
-    min_steps = int(min_steps/2)
+    if half_num_iters:
+        min_steps = int(min_steps/2)
     
     
     for j in range(num_inits):
@@ -105,16 +196,33 @@ def check_convergence(inits,tol=0.005,method='As_diff',min_steps=20):
                 diff = np.mean(abs(Gain_i - Gain_prev))
                 Gain_prev = Gain_i
 
-            if diff <= tol: 
-                elbo_diff = elbos[j,i*2]-elbos[j,i*2-1]
-                print('initialization: %s, steps to convergence: %s, elbo diff: %.f' %(j, i*2, elbo_diff))
-                steps_to_convergence[j] = i*2
+            elif method == 'ELBO':
+                if half_num_iters:
+                    diff = elbos[j,i*2]-elbos[j,i*2-1]
+                else:
+                    diff = elbos[j,i]-elbos[j,i-1]
+
+            if abs(diff) <= tol: 
+                if half_num_iters:
+                    elbo_diff = elbos[j,i*2]-elbos[j,i*2-1]
+                    steps_to_convergence[j] = i*2
+                else:
+                    elbo_diff = elbos[j,i]-elbos[j,i-1]
+                    steps_to_convergence[j] = i
+
+                print('initialization: %s, steps to convergence: %s, elbo diff: %.f' %(j, steps_to_convergence[j], abs(elbo_diff)))
+                
                 elbo_diffs[j] = abs(elbo_diff)
                 break 
             
             elif i==int(num_iters)-1:
-                steps_to_convergence[j] = (num_iters * 2) - 1
-                print('initialization: %s, steps to convergence: %s, elbo diff: %s' %(j, num_iters * 2, 'N/A'))
+                if half_num_iters:
+                    elbo_diff = elbos[j,i*2]-elbos[j,i*2-1]
+                    steps_to_convergence[j] = (num_iters * 2) - 1
+                else:
+                    elbo_diff = elbos[j,i]-elbos[j,i-1]
+                    steps_to_convergence[j] = num_iters - 1
+                print('initialization: %s, steps to convergence: %s, elbo diff: %.f' %(j, steps_to_convergence[j]+1, abs(elbo_diff)))
 
     return elbos, steps_to_convergence
 

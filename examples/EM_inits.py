@@ -1,7 +1,11 @@
+# Import sys and add folder one level up to path
+import sys
+sys.path.insert(0, '..')
+
 # Import our functions
-from moment_conversion import *
-from ssid import *
-from simulate import *
+from bestlds.moments import *
+from bestlds.ssid import *
+from bestlds.simulate import *
 
 # Import other things that might be useful
 import numpy as np
@@ -10,8 +14,6 @@ from scipy.stats import norm
 from scipy.linalg import subspace_angles
 import scipy.io as sio
 import pickle
-import sys
-sys.path.insert(0, '..')
 
 ### Simulation with driven LDS-BEST
 seed = 27642

@@ -17,9 +17,9 @@ The code can also be used to recreate all the figures in this paper.
 * error_metrics.py: basic script for generating the types of error metrics shown in Figure 2
 * error_metrics.ipynb: code used for running the simulations and computing the error metrics shown in Figure 2
 * estimator_run_time.py: script to compute the bestLDS run times as shown in Table 2 and Supplementary Figure 2
-* fit_EM.py: various functions for fitting the Expectation Maximization (EM) algorithm using the <code>ssm</code> [package] (https://github.com/lindermanlab/ssm) as well as for checking convergence and plotting the ELBOs, as shown in Figure 3 and Table 2
+* fit_EM.py: various functions for fitting the Expectation Maximization (EM) algorithm using the <code>ssm</code> [package](https://github.com/lindermanlab/ssm) as well as for checking convergence and plotting the ELBOs, as shown in Figure 3 and Table 2
 * model_comparisons.py: code for generating the simulated datasets, train/test splits, and bestLDS fits for obtaining the model comparison values shown in Table 1
-* run_EM.ipynb: code used for fitting the Expectation Maximization (EM) algorithm using the <code>ssm</code> [package] (https://github.com/lindermanlab/ssm) as well as for checking convergence and plotting the ELBOs, as shown in Figure 3 and Table 2
+* run_EM.ipynb: code used for fitting the Expectation Maximization (EM) algorithm using the <code>ssm</code> [package](https://github.com/lindermanlab/ssm) as well as for checking convergence and plotting the ELBOs, as shown in Figure 3 and Table 2
 
 #### data
 * em-fits: contains all the results after fitting EM using the parameters in <code>em-inits</code>, including the EM-inferred parameters and the ELBOs/LLs

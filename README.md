@@ -62,7 +62,6 @@ To make sure you have the required packages installed, you can create a virtual 
 ```
 conda env create -f bestLDS.yml
 conda activate bestLDS
-
 ```
 
 <!-- After cloning the repo, you can also install via:

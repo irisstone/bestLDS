@@ -1,11 +1,14 @@
 # bestLDS
 This package provides code for a spectral method for estimating the system parameters of input-driven Bernoulli Linear Dynamical Systems (LDS) models and performing subsequent analysis of the estimates, as well as for using the estimates as initializations for LDS fitting using the Expectation Maximization (EM) algorithm. The estimator, called bestLDS (BErnoulli SpecTral Linear Dynamical System) is appropriate for applications to a wide variety binary time series data.  
 
-The code can also be used to recreate all the figures in this paper. 
+The code can also be used to recreate all the figures in Stone, Sagiv et al. (2023). 
+
+Note that while some of the data associated with the paper is contained in the <code>data</code> folder, there are some omissions due to space constrains. To access all of the simulated and real data as well as the model fits associated with the analyses in the manuscript, see our [figshare page](https://figshare.com/articles/dataset/bestLDS_associated_data/23750670). 
 
 ### Package Contents
 
 #### bestlds
+* baselines.py: support function for computing certain baseline comparisons shown in Figure 4
 * moments.py: functions for executing the moment conversion in bestLDS and as detailed in Subsection 3.3
 * simulate.py: functions for simulating data of various distributions, used throughout the paper
 * ssid.py: functions for executing subspace identification methods as detailed in Subsection 3.2
@@ -44,3 +47,29 @@ The code can also be used to recreate all the figures in this paper.
 * SIPPY-master: code for generating the Gaussian parameter estimates, used for comparisons in Tables 1 and 2 and Figures 3 and 4
 * simplelds: folder containing MATLAB scripts used to evaluate the log-evidence of simulated datasets in which q=1, as shown in Figure 3
 * ssidforplds: code for generating the Poisson parameter estimates (from [Buesing et. al (2012)](https://proceedings.neurips.cc/paper_files/paper/2012/hash/d58072be2820e8682c0a27c0518e805e-Abstract.html)), used for comparisons in Table 1 and Figure 3
+
+### Installation
+
+For easy installation, download the code using the link above or type the following into a terminal window:
+
+```
+https://github.com/irisstone/bestLDS.git
+```
+
+You will need to have python 3.9 installed on your computer for the code to run. 
+
+To make sure you have the required packages installed, you can create a virtual environment on your computer using the <code>bestLDS.yml</code> environment file:
+```
+conda env create -f bestLDS.yml
+conda activate bestLDS
+
+```
+
+<!-- After cloning the repo, you can also install via:
+```
+cd bestLDS
+python setup.py install
+```
+Then verify that the installation was successful by trying to import the package:
+```
+import bestlds -->

@@ -1,3 +1,7 @@
+# Import sys and add folder one level up to path
+import sys
+sys.path.insert(0, '..')
+
 import numpy as np
 from glmhmm import glm
 from glmhmm.analysis import reshape_obs
